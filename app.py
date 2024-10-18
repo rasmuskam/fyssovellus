@@ -11,47 +11,29 @@ def butter_lowpass(cutoff, fs, order=5):
     b, a = butter(order, normal_cutoff, btype='low', analog=False)
     return b, a
 
+
 def lowpass_filter(data, cutoff, fs, order=5):
     b, a = butter_lowpass(cutoff, fs, order=order)
     y = filtfilt(b, a, data)
     return y
 
+
 st.title("Urheilusovellus")
 
 accel_file = st.file_uploader("Lataa kiihtyvyysdata (Accelerometer.csv)", type=["csv"])
 gps_file = st.file_uploader("Lataa GPS-data (Location.csv)", type=["csv"])
-time_file = st.file_uploader("Lataa aikadata (time.csv)", type=["csv"])
-
-if accel_file and gps_file and time_file:
+if accel_file and gps_file:
     accel_data = pd.read_csv(accel_file)
     gps_data = pd.read_csv(gps_file)
-    time_data = pd.read_csv(time_file)
-
-    st.write("Ensimmäiset rivit kiihtyvyysdatasta:")
-    st.write(accel_data.head())
-
-    st.write("Ensimmäiset rivit GPS-datasta:")
-    st.write(gps_data.head())
-
-    st.write("Ensimmäiset rivit aikadatasta:")
-    st.write(time_data.head())
-
-    component = st.selectbox("Valitse analysoitava kiihtyvyyden komponentti:", ['X (m/s^2)', 'Y (m/s^2)', 'Z (m/s^2)'])
+    component = 'Y (m/s^2)'
 
     fs = 50.0
-    cutoff = 3.0
+    cutoff = 3.0  
     filtered_data = lowpass_filter(accel_data[component], cutoff, fs)
 
     peaks, _ = find_peaks(filtered_data, height=0.5, distance=20)
     step_count = len(peaks)
     st.write(f"Askelmäärä suodatetusta kiihtyvyysdatasta ({component}): {step_count}")
-
-    freq = np.fft.fftfreq(len(filtered_data), d=1/fs)
-    fft_result = np.fft.fft(filtered_data)
-    psd = np.abs(fft_result)**2
-
-    step_count_fourier = (psd > 5.0).sum()
-    st.write(f"Askelmäärä Fourier-analyysin perusteella: {step_count_fourier}")
 
     if 'latitude' in gps_data.columns and 'longitude' in gps_data.columns and 'Velocity (m/s)' in gps_data.columns:
         average_velocity = gps_data['Velocity (m/s)'].mean()
@@ -69,7 +51,11 @@ if accel_file and gps_file and time_file:
 
         st.line_chart(filtered_data, use_container_width=True)
 
-        st.subheader("Tehospektritiheys")
+        freq = np.fft.fftfreq(len(filtered_data), d=1/fs)
+        fft_result = np.fft.fft(filtered_data)
+        psd = np.abs(fft_result)**2
+
+        st.subheader("Tehospektri")
         plt.figure(figsize=(10, 6))
         plt.plot(freq, psd)
         plt.title("Tehospektritiheys")
